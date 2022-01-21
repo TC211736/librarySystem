@@ -1,18 +1,12 @@
 package com.company;
 
-import com.sun.scenario.effect.impl.sw.sse.SSEBlend_SRC_OUTPeer;
-
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Scanner;
 import java.util.ArrayList;
 import java.io.File;
-import java.io.*;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-
-import static java.lang.Integer.parseInt;
-
 
 class EraserThread implements Runnable {
 
@@ -25,7 +19,7 @@ class EraserThread implements Runnable {
     public void run() {
         stop = true;
         while (stop) {
-            System.out.println("/010*");
+            System.out.print("\010*");
             try {
                 Thread.currentThread().sleep(1);
             } catch (InterruptedException e) {
@@ -39,22 +33,47 @@ class EraserThread implements Runnable {
     }
 }
 
+class PasswordField {
+    public static String readPassword(String prompt) {
+        EraserThread et = new EraserThread(prompt);
+        Thread mask = new Thread(et);
+        mask.start();
 
-class MyFilenameFilter implements FilenameFilter {
-    String initials;
+        BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+        String password = "";
 
-    public MyFilenameFilter(String initials) {
-        this.initials;
-    }
-
-    public boolean accept(File dir, String name) {
-        return name.startsWith(initials);
+        try {
+            password = in.readLine();
+        } catch (IOException e) {
+            System.out.println(e);
+            e.printStackTrace();
+        }
+        et.stopMasking();
+        return password;
     }
 }
+
+
+// Code for setting up my FileNameFilter which I may need in future
+
+//class MyFilenameFilter implements FilenameFilter {
+//    String fileName;
+//
+//    public MyFilenameFilter(String fileName) {
+//
+//        this.fileName = fileName.toLowerCase();
+//    }
+//
+//    @Override
+//    public boolean accept(File dir, String name) {
+//
+//        return name.toLowerCase().startsWith(fileName);
+//    }
+//}
+
 public class Main {
 
     private static ArrayList libraryBookNames = new ArrayList();
-
 
     private static String register() {
         boolean samePassword = false;
@@ -86,29 +105,54 @@ public class Main {
     }
 
     private static String[] readLoginFile() {
-        Scanner myReader = new Scanner()
+        String username = userName();
+        String[] userInfo = null;
+        Scanner fileReader = new Scanner(username + ".txt");
+        while (fileReader.hasNextLine()) {
+            String data = fileReader.nextLine();
+            userInfo = data.split(", ");
+        }
+        return userInfo;
+
     }
 
-    private static boolean logMeIn() {
-        System.out.println("Please enter your username.");
-
+    private static String userName() {
+        String username = getInput("Please enter your username.");
+        return username;
     }
 
-    public static String readPassword(String prompt) {
-        EraserThread et = new EraserThread(prompt);
-        Thread mask = new Thread(et);
-        mask.start();
-        BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
-        String password = "";
+    private static boolean password() {
+        boolean validPassword = false;
+        String[] userInfo = readLoginFile();
+        String actualPassword = userInfo[0];
+        while (!validPassword) {
+            String password = PasswordField.readPassword("Please enter your Password");
+            if (password.equals(actualPassword)) {
+                validPassword = true;
+                System.out.println("Welcome" + userInfo[0]);
+            } else {
+                System.out.println("Password Incorrect");
+            }
+        }
+        return true;
+    }
 
+
+    private static void writeBookInfo() {
         try {
-            password = in.readLine();
+            int bookNum = numberOfBooks();
+            for (int i = 0; i < bookNum; i++) {
+                String bookInformation = bookInformation();
+                String[] parts = bookInformation.split(", ");
+                File bookInfo = new File(parts[0] + ".txt");
+                FileWriter myWriter = new FileWriter(bookInfo);
+                myWriter.write(bookInformation);
+                myWriter.close();
+            }
         } catch (IOException e) {
+            System.out.println("An error occurred");
             e.printStackTrace();
         }
-        et.stopMasking();
-        return password;
-
     }
 
     private static String bookInformation() {
@@ -120,33 +164,40 @@ public class Main {
         return (bookName + ", " + ISBN + ", " + author + ", " + genre);
     }
 
-    private static void writeBookInfo() {
-        try {
-            String bookInformation = bookInformation();
-            String[] parts = bookInformation.split(",");
-            File bookInfo = new File(parts[0] + ".txt");
-            FileWriter myWriter = new FileWriter(bookInfo);
-            myWriter.write(bookInformation);
-            myWriter.close();
-        } catch (IOException e) {
-            System.out.println("An error occurred");
-            e.printStackTrace();
-        }
+    private static Object bookInfoObj() {
+        String BI = bookInformation();
+        String[] parts = BI.split(", ");
+        int ISBN = Integer.parseInt(parts[1]);
+        bookInformation bookInfo = new bookInformation(parts[0], parts[2], ISBN, parts[3]);
+        return bookInfo;
     }
 
+
+    private static int numberOfBooks() {
+        int bookNum = getInteger("How many books would you like to add?");
+        return bookNum;
+    }
 
     private static String getInput(String prompt) {
         System.out.println(prompt);
         Scanner input = new Scanner(System.in);
-
         return input.nextLine();
     }
 
-    private static int numberOfBooks() {
-        String s = getInput("How many books would you like to add?");
-        int bookNum = parseInt(s);
-        return bookNum;
+    private static int getInteger(String prompt) {
+        System.out.println(prompt);
+        Scanner input = new Scanner(System.in);
+        return input.nextInt();
     }
+
+//    Code for my FileNameFilter which I may need to use in future
+
+//    private static void findUserInfo() {
+//        String name = userName();
+//        File file = new File("W10Desktop");
+//        File[] listFiles = file.listFiles(new MyFilenameFilter(name)); //idk man figure it out on the way home future me
+//        System.out.println(listFiles);
+//    }
 
     public static void main(String[] args) {
         String logOrReg = getInput("Would you like to login or register?");
@@ -155,13 +206,17 @@ public class Main {
                 loginFile();
                 break;
             case "login":
-                logMeIn();
-                break;
+                boolean validLogin = password();
+                if (validLogin == true) {
+                    break;
+                }
         }
 
         String userInput = getInput("What would you like to do?");
         switch (userInput) { //create a menu system so you can perform lots of commands here
-
+            case "add book":
+                writeBookInfo();
+            case "delete book":
         }
 
     }
